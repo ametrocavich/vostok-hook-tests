@@ -1,0 +1,11 @@
+[mod]
+name="RTVModLib Test Suite"
+id="rtvmodlib_tests"
+version="1.0.0"
+priority=0
+
+[autoload]
+RTVModLibTests="res://RTVModLibTests/Main.gd"
+
+[rtvmodlib]
+needs="Controller,Camera,Trader,Door,Pickup,LootContainer,WeaponRig,Hitbox"
