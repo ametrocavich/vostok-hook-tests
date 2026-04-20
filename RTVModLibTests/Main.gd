@@ -19,7 +19,7 @@ extends Node
 
 var _lib: Object = null
 
-# ----- test-tracking -----
+# test-tracking
 var _passed: int = 0
 var _failed: int = 0
 var _skipped: int = 0
@@ -27,7 +27,7 @@ var _results: Array[String] = []
 var _section_name: String = ""
 var _current_test: String = ""
 
-# ----- phase 2 gameplay-tracking -----
+# phase 2 gameplay-tracking
 var _gameplay: Dictionary = {}
 var _elapsed: float = 0.0
 var _next_report_at: float = 60.0
@@ -39,16 +39,16 @@ var _report_count: int = 0
 var _f10_prev_pressed: bool = false
 var _f9_prev_pressed: bool = false
 
-# ----- dispatch ordering state (used by multiple tests) -----
+# dispatch ordering state (used by multiple tests)
 var _event_log: Array = []
 var _skip_super_fired: bool = false
 var _movement_post_order: Array = []
 var _movement_post_logged: bool = false
 
-# ----- legacy real-mod counters (still used by footstep + damage reports) -----
+# legacy real-mod counters (still used by footstep + damage reports)
 var _footstep_blocks: int = 0
 
-# ----- Section G: Bulletproof In-Game Effect Verification -----
+# Section G: Bulletproof In-Game Effect Verification
 # Each test verifies THREE layers:
 #   Layer 1 (WRITE):       read-before, apply, read-after -> must equal target
 #   Layer 2 (PERSISTENCE): every subsequent frame, read -> must still be target
@@ -142,9 +142,7 @@ var _g9_replace_count := 0
 var _g10_unhooked := false
 var _g10_unhook_respected := 0   # readings after revert that match baseline
 
-# =======================================================================
-#  ENTRY
-# =======================================================================
+## ENTRY
 
 func _ready() -> void:
 	_log("===== RTVModLib Comprehensive Test Suite v2.0 =====")
@@ -208,9 +206,7 @@ func _find_with_class(n: Node, target: String) -> Node:
 		if r: return r
 	return null
 
-# =======================================================================
-#  RUNNER
-# =======================================================================
+## RUNNER
 
 func _run_all_sync_phases() -> void:
 	await _run_section("A. Core API Surface", _tests_section_a)
@@ -251,9 +247,7 @@ func _t(name: String, fn: Callable) -> void:
 func _log(msg: String) -> void:
 	print("[TEST] " + msg)
 
-# =======================================================================
-#  SECTION A -- CORE API SURFACE
-# =======================================================================
+## SECTION A -- CORE API SURFACE
 
 func _tests_section_a() -> void:
 	await _t("A01 engine_meta_set", func():
@@ -401,9 +395,7 @@ func _tests_section_a() -> void:
 		_lib.unhook(123456)
 		return null)
 
-# =======================================================================
-#  SECTION B -- DISPATCH SEMANTICS
-# =======================================================================
+## SECTION B -- DISPATCH SEMANTICS
 
 func _tests_section_b() -> void:
 	await _t("B01 dispatch_passes_zero_args", func():
@@ -565,9 +557,7 @@ func _tests_section_b() -> void:
 		return null if count[0] == 0 else "fired after unhook"
 		)
 
-# =======================================================================
-#  SECTION C -- EDGE CASES & STRESS
-# =======================================================================
+## SECTION C -- EDGE CASES & STRESS
 
 func _tests_section_c() -> void:
 	await _t("C01 unhook_during_dispatch_no_crash", func():
@@ -725,7 +715,7 @@ func _tests_section_c() -> void:
 		_lib.unhook(id)
 		_lib._dispatch("__c15-pre", [])
 		return null)
-	# -- Follow-ups on the C03 bug (dispatch iterates live array) --
+	# Follow-ups on the C03 bug (dispatch iterates live array)
 	await _t("C16 self_registering_hook_does_not_infinite_loop", func():
 		# A hook that registers another copy of itself during dispatch would
 		# infinite-loop IF the live-array iteration keeps picking up appends
@@ -821,9 +811,7 @@ func _tests_section_c() -> void:
 			return "skip_super flag did not persist after replace -- auto-reset?"
 		return null)  # leak IS expected; framework wrapper must save/restore
 
-# =======================================================================
-#  SECTION D -- CALLER TRACKING
-# =======================================================================
+## SECTION D -- CALLER TRACKING
 
 func _tests_section_d() -> void:
 	await _t("D01 caller_is_null_initially_or_stale", func():
@@ -931,9 +919,7 @@ func _tests_section_d() -> void:
 		var all_same = captured.size() == 3 and captured[0] == helper and captured[1] == helper and captured[2] == helper
 		return null if all_same else "got %s" % [captured])
 
-# =======================================================================
-#  SECTION R -- REGISTRY (Database mod-override surface)
-# =======================================================================
+## SECTION R -- REGISTRY (Database mod-override surface)
 #
 # Exercises tetra's Database transform end-to-end: verifies the
 # const->dict rewrite ran, the injected _get() serves vanilla ids,
@@ -1044,9 +1030,7 @@ func _tests_section_r() -> void:
 		if ok: return "register should reject unknown registry but returned true"
 		return null)
 
-# =======================================================================
-#  SECTION E/F -- GAMEPLAY-DEPENDENT (registered now, verified at report)
-# =======================================================================
+## SECTION E/F -- GAMEPLAY-DEPENDENT (registered now, verified at report)
 
 func _run_gameplay_setup() -> void:
 	_log("")
@@ -1093,44 +1077,42 @@ func _run_gameplay_setup() -> void:
 		_lib.skip_super()
 	)
 
-	# ==============================================================
-	# SECTION G -- BULLETPROOF IN-GAME EFFECT VERIFICATION
-	# 3 layers per test: WRITE, PERSISTENCE, SECONDARY EFFECT
-	# Plus negative-control phase at 120s (G10)
-	# ==============================================================
+	# Section G: bulletproof in-game effect verification.
+	# 3 layers per test (WRITE, PERSISTENCE, SECONDARY EFFECT) plus a
+	# negative-control phase triggered by F9 (G10).
 
-	# G1 -- walkSpeed/sprintSpeed mutation. Layer 3: currentSpeed tracks toward target.
+	# G1: walkSpeed/sprintSpeed mutation. Layer 3: currentSpeed tracks toward target.
 	_lib.hook("controller-movement-pre", _g1_apply_and_persist, 50)
 	_lib.hook("controller-movement-post", _g1_observe_effect)
 
-	# G2 -- gameData.baseFOV. Layer 3: camera.fov lerps toward baseFOV.
+	# G2: gameData.baseFOV. Layer 3: camera.fov lerps toward baseFOV.
 	_lib.hook("camera-fov-pre", _g2_apply_and_persist, 50)
 	_lib.hook("camera-fov-post", _g2_observe_effect)
 
-	# G3 -- jumpVelocity. Layer 3: velocity.y peak on Jump = new value.
+	# G3: jumpVelocity. Layer 3: velocity.y peak on Jump = new value.
 	_lib.hook("controller-jump-pre", _g3_apply_and_persist, 50)
 	_lib.hook("controller-jump-post", _g3_observe_effect)
 
-	# G4 -- gravityMultiplier. Layer 3: fall rate observable in velocity.y.
+	# G4: gravityMultiplier. Layer 3: fall rate observable in velocity.y.
 	_lib.hook("controller-gravity-pre", _g4_apply_and_persist, 50)
 
-	# G5 -- God mode. REPLACE + skip_super blocks damage. Verify via gameData.health.
+	# G5: God mode. REPLACE + skip_super blocks damage. Verify via gameData.health.
 	_lib.hook("hitbox-applydamage-pre", _g5_observe_pre)
 	_lib.hook("hitbox-applydamage", _g5_replace_block)  # replace hook
 	_lib.hook("hitbox-applydamage-post", _g5_observe_post)
 
-	# G7 -- Door interact block (runs only while _g7_door_enabled = true).
+	# G7: Door interact block (runs only while _g7_door_enabled = true).
 	# Verifies isOpen state preservation.
 	_lib.hook("door-interact-pre", _g7_door_pre)
 	_lib.hook("door-interact", _g7_door_replace)
 	_lib.hook("door-interact-post", _g7_door_post)
 
-	# G8 -- Priority composition: 3 hooks writing at pri 50, 200, 300(reader).
+	# G8: Priority composition: 3 hooks writing at pri 50, 200, 300(reader).
 	_lib.hook("controller-movement-pre", _g8_pri_50, 80)  # writes walkSpeed=8
 	_lib.hook("controller-movement-pre", _g8_pri_200, 200) # writes walkSpeed=12
 	_lib.hook("controller-movement-pre", _g8_pri_300_read, 300)  # reads back
 
-	# G9 -- Pre fires WITH replace on same method (composition test).
+	# G9: Pre fires WITH replace on same method (composition test).
 	# Already covered implicitly by G5's pre+replace+post all firing, but add
 	# a dedicated counter for clarity.
 	_lib.hook("hitbox-applydamage-pre", _g9_pre)
@@ -1187,11 +1169,9 @@ func _record(name: String) -> void:
 			"%s (%s)" % [state["caller_name"], state["caller_class"]] if caller_ok else "<null>"
 		])
 
-# ==============================================================
-# SECTION G -- BULLETPROOF HOOK IMPLEMENTATIONS
-# ==============================================================
+## SECTION G -- BULLETPROOF HOOK IMPLEMENTATIONS
 
-# --- G1: walkSpeed mutation + persistence + currentSpeed effect ---
+# G1: walkSpeed mutation + persistence + currentSpeed effect
 func _g1_apply_and_persist(_delta):
 	if _g10_unhooked: return  # post-revert, do nothing
 	var c = _lib._caller
@@ -1234,7 +1214,7 @@ func _g1_observe_effect(_delta):
 		_g1_effect_currentspeed_samples.append(cs)
 		if cs > _g1_effect_currentspeed_max: _g1_effect_currentspeed_max = cs
 
-# --- G2: baseFOV mutation + persistence + camera.fov effect ---
+# G2: baseFOV mutation + persistence + camera.fov effect
 func _g2_apply_and_persist(_delta):
 	var c = _lib._caller
 	if not _valid_caller(c): return
@@ -1265,7 +1245,7 @@ func _g2_observe_effect(_delta):
 	var f: float = c.camera.fov
 	if f > _g2_effect_camfov_max: _g2_effect_camfov_max = f
 
-# --- G3: jumpVelocity mutation + peak velocity.y observation ---
+# G3: jumpVelocity mutation + peak velocity.y observation
 func _g3_apply_and_persist(_delta):
 	var c = _lib._caller
 	if not _valid_caller_with(c, "jumpVelocity"): return
@@ -1292,7 +1272,7 @@ func _g3_observe_effect(_delta):
 	var vy: float = c.velocity.y
 	if vy > _g3_peak_velocity_y: _g3_peak_velocity_y = vy
 
-# --- G4: gravityMultiplier mutation + persistence ---
+# G4: gravityMultiplier mutation + persistence
 func _g4_apply_and_persist(_delta):
 	var c = _lib._caller
 	if not _valid_caller_with(c, "gravityMultiplier"): return
@@ -1311,7 +1291,7 @@ func _g4_apply_and_persist(_delta):
 		_g4_persist_fail += 1
 		c.gravityMultiplier = G4_GRAVITY
 
-# --- G5: God mode -- replace+skip_super + gameData.health verification ---
+# G5: God mode -- replace+skip_super + gameData.health verification
 func _g5_observe_pre(damage):
 	_g5_damage_events += 1
 	if damage is float or damage is int:
@@ -1340,7 +1320,7 @@ func _g5_observe_post(_damage):
 		var h: float = c.owner.gameData.health
 		if h < _g5_health_min_seen: _g5_health_min_seen = h
 
-# --- G7: Door interact block -- read isOpen before/after ---
+# G7: Door interact block -- read isOpen before/after
 # LIMITED to G7_MAX_BLOCKS so player isn't permanently locked out of doors.
 func _g7_door_pre():
 	if not _g7_door_enabled: return
@@ -1369,7 +1349,7 @@ func _g7_door_post():
 	else:
 		_g7_door_isopen_changed += 1
 
-# --- G8: Priority composition -- uses metadata so it does NOT interfere with G1 ---
+# G8: Priority composition -- uses metadata so it does NOT interfere with G1
 func _g8_pri_50(_delta):
 	_g8_p50_fires += 1
 	var c = _lib._caller
@@ -1392,11 +1372,11 @@ func _g8_pri_300_read(_delta):
 	else:
 		_g8_final_was_other += 1
 
-# --- G9: Pre fires WITH replace present ---
+# G9: Pre fires WITH replace present
 func _g9_pre(_damage):
 	_g9_pre_count += 1
 
-# --- Helpers ---
+# Helpers
 func _valid_caller(c) -> bool:
 	return c != null and is_instance_valid(c)
 
@@ -1417,9 +1397,7 @@ func _movement_post_B(_delta):
 		_movement_post_logged = true
 		_log("  [E] movement-post order: %s (expected [A,B])" % [_movement_post_order])
 
-# =======================================================================
-#  REPORT
-# =======================================================================
+## REPORT
 
 # 3-layer report for mutation tests
 func _report_3layer(label: String, applied: bool, write_ok: bool,
